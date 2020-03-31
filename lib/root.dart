@@ -1,7 +1,7 @@
 part of k;
 
 void main() {
-  runApp(Root());
+  runApp(MyApp());
 }
 
 class Root extends StatelessWidget {
@@ -9,9 +9,14 @@ class Root extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
+      theme: ThemeData.dark().copyWith(
+          sliderTheme: SliderThemeData().copyWith(
+        activeTrackColor: Color.fromRGBO(140, 130, 122, 1),
+        thumbColor: Color.fromRGBO(140, 130, 122, 1),
+        inactiveTrackColor: Color.fromRGBO(140, 130, 122, 0.44),
+      )),
       home: Scaffold(
-        body: MusicPlayer(),
+        body: PlaylistPg(),
       ),
     );
   }

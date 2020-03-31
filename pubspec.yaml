@@ -17,6 +17,8 @@ environment:
   sdk: ">=2.7.0 <3.0.0"
 
 dependencies:
+  spotify:
+    path: ../packages/spotify-dart
   audio_service:
   path_provider: ^1.5.1
   just_audio: ^0.0.6
