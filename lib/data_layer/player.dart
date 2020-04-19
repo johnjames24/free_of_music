@@ -100,6 +100,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 final mediaItem = screenState?.mediaItem;
                 final state = screenState?.playbackState;
                 final basicState = state?.basicState ?? BasicPlaybackState.none;
+
+                print(screenState?.playbackState?.basicState);
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -124,8 +126,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                         ],
                       ),
                     if (mediaItem?.title != null) Text(mediaItem.title),
-                    if (basicState == BasicPlaybackState.none) ...[
-                      audioPlayerButton(),
+                    if (basicState == BasicPlaybackState.none ||
+                        basicState == BasicPlaybackState.stopped) ...[
+                      audioPlayerButton(_album),
+                      audioPlayerButton(_playlist),
                     ] else
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -165,16 +169,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     );
   }
 
-  RaisedButton audioPlayerButton() => startButton(
+  RaisedButton audioPlayerButton(Function _entry) => startButton(
         'AudioPlayer',
-        () {
-          AudioService.start(
-            backgroundTaskEntrypoint: _audioPlayerTaskEntrypoint,
-            androidNotificationChannelName: 'Audio Service Demo',
-            notificationColor: 0xFF2196f3,
-            androidNotificationIcon: 'mipmap/ic_launcher',
-            enableQueue: true,
-          );
+        () async {
+          if (await AudioService.running) await AudioService.stop();
+          await _entry();
         },
       );
 
@@ -240,6 +239,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       },
     );
   }
+
+  void _playlist() async {
+    var m = PlaylistManager.fromPlaylist("37i9dQZF1DWZeKCadgRdKQ");
+    await m.initAudioService();
+  }
+
+  void _album() async {
+    var m = PlaylistManager.fromAlbum("4E7bV0pzG0LciBSWTszra6");
+    m.initAudioService();
+  }
 }
 
 class ScreenState {
@@ -250,39 +259,16 @@ class ScreenState {
   ScreenState(this.queue, this.mediaItem, this.playbackState);
 }
 
-void _audioPlayerTaskEntrypoint() async {
-  AudioServiceBackground.run(() => AudioPlayerTask());
-}
-
 class AudioPlayerTask extends BackgroundAudioTask {
-  final _queue = <MediaItem>[
-    MediaItem(
-      id: "https://s3.amazonaws.com/scifri-episodes/scifri20181123-episode.mp3",
-      album: "Science Friday",
-      title: "A Salute To Head-Scratching Science",
-      artist: "Science Friday and WNYC Studios",
-      duration: 5739820,
-      artUri:
-          "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
-    ),
-    MediaItem(
-      id: "https://s3.amazonaws.com/scifri-segments/scifri201711241.mp3",
-      album: "Science Friday",
-      title: "From Cat Rheology To Operatic Incompetence",
-      artist: "Science Friday and WNYC Studios",
-      duration: 2856950,
-      artUri:
-          "https://media.wnyc.org/i/1400/1400/l/80/1/ScienceFriday_WNYCStudios_1400.jpg",
-    ),
-  ];
+  var _queue;
 
   int _queueIndex = -1;
   AudioPlayer _audioPlayer = new AudioPlayer();
   Completer _completer = Completer();
+  Completer _init = Completer();
+  Completer _onStart = Completer();
   BasicPlaybackState _skipState;
   bool _playing;
-
-  AudioPlayerTask();
 
   bool get hasNext => _queueIndex + 1 < _queue.length;
 
@@ -328,7 +314,10 @@ class AudioPlayerTask extends BackgroundAudioTask {
       }
     });
 
-    AudioServiceBackground.setQueue(_queue);
+    //AudioServiceBackground.setQueue(_queue);
+    _onStart.complete();
+    print("waiting for queue");
+    await _init.future;
     await onSkipToNext();
     await _completer.future;
     playerStateSubscription.cancel();
@@ -368,11 +357,13 @@ class AudioPlayerTask extends BackgroundAudioTask {
     }
     // Load next item
     _queueIndex = newPos;
-    AudioServiceBackground.setMediaItem(mediaItem);
+    var yt = await getMusicUrl(mediaItem);
+    AudioServiceBackground.setMediaItem(
+        mediaItem.copyWith(duration: yt.duration.inMilliseconds));
     _skipState = offset > 0
         ? BasicPlaybackState.skippingToNext
         : BasicPlaybackState.skippingToPrevious;
-    await _audioPlayer.setUrl(mediaItem.id);
+    await _audioPlayer.setUrl(yt.id);
     _skipState = null;
     // Resume playback if we were playing
     if (_playing) {
@@ -415,16 +406,50 @@ class AudioPlayerTask extends BackgroundAudioTask {
     _completer.complete();
   }
 
+  @override
+  void onCustomAction(String name, dynamic arguments) {
+    switch (name) {
+      case "initQueue":
+        {
+          //initates queue
+          _initQueue(arguments);
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  _initQueue(dynamic json) async {
+    await _onStart.future;
+    var list =
+        (json as List).map((x) => _decodeMediaItem(jsonDecode(x))).toList();
+
+    _queue = list;
+    await AudioServiceBackground.setQueue(list);
+    _init.complete();
+  }
+
+  MediaItem _decodeMediaItem(Map e) {
+    return MediaItem(
+      id: e["id"] as String,
+      title: e["title"] as String,
+      album: e["album"] as String,
+      artist: e["artist"] as String,
+      artUri: e.containsKey("artUri") ? e["artUri"] as String : null,
+      duration: e["duration"] as int,
+    );
+  }
+
   void _setState({@required BasicPlaybackState state, int position}) {
     if (position == null) {
       position = _audioPlayer.playbackEvent.position.inMilliseconds;
     }
     AudioServiceBackground.setState(
-      controls: getControls(state),
-      systemActions: [MediaAction.seekTo],
-      basicState: state,
-      position: position,
-    );
+        controls: getControls(state),
+        systemActions: [MediaAction.seekTo],
+        basicState: state,
+        position: position);
   }
 
   List<MediaControl> getControls(BasicPlaybackState state) {
