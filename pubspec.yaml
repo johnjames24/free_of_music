@@ -19,10 +19,10 @@ environment:
 dependencies:
   spotify:
     path: ../packages/spotify-dart
-  audio_service:
+  audio_service: ^0.7.2
   path_provider: ^1.5.1
-  just_audio: ^0.0.6
-  rxdart: ^0.23.1
+  just_audio: 
+  rxdart: ^0.24.0
   youtube_explode_dart:
   html:
   flutter:

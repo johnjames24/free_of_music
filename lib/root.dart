@@ -1,7 +1,7 @@
 part of k;
 
 void main() {
-  runApp(MyApp());
+  runApp(SamplePlayer());
 }
 
 class Root extends StatelessWidget {
@@ -16,7 +16,7 @@ class Root extends StatelessWidget {
         inactiveTrackColor: Color.fromRGBO(140, 130, 122, 0.44),
       )),
       home: Scaffold(
-        body: PlaylistPg(),
+        body: MusicPlayer(),
       ),
     );
   }

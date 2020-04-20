@@ -68,9 +68,19 @@ Future<List<yt.MediaStreamInfo>> ytMusic(String id) async {
 }
 
 Future<YtMediaItem> getMusicUrl(MediaItem mediaItem) async {
-  var ytItem = await ytSearch(mediaItem.artist + " - " + mediaItem.title);
-  var audio = await ytMusic(ytItem.id);
-  return YtMediaItem()
-    ..duration = ytItem.duration
-    ..id = audio.first.url.toString();
+  var i = 0;
+  while (i < 3) {
+    try {
+      var ytItem = await ytSearch(mediaItem.artist + " - " + mediaItem.title);
+      var audio = await ytMusic(ytItem.id);
+      return YtMediaItem()
+        ..duration = ytItem.duration
+        ..id = audio.first.url.toString();
+    } catch (e) {
+      i++;
+      print("Youtube Search Parser #ERROR TRY $i");
+    }
+  }
+
+  throw ErrorDescription("Youtube Search Error");
 }

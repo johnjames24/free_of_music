@@ -4,6 +4,16 @@ void instantiateAudioService() async {
   AudioServiceBackground.run(() => AudioPlayerTask());
 }
 
+class PlaylistItemHolder {
+  final MediaItem mediaItem;
+  final int index;
+
+  PlaylistItemHolder({
+    @required this.mediaItem,
+    @required this.index,
+  });
+}
+
 class PlaylistManager {
   List<spotify.Track> _tracks;
   Completer _initiated = Completer<bool>();
@@ -15,18 +25,12 @@ class PlaylistManager {
 
   Future<List<String>> get mediaItem async {
     await _initiated.future;
-    return _tracks
-        .map((e) => jsonEncode({
-              "id": e.id,
-              "title": e.name,
-              "album": e?.album?.name,
-              "artist": e?.artists?.map((e) => e.name)?.join(", "),
-              "artUri": e?.album?.images == null
-                  ? ""
-                  : _selectMediaItemImage(e.album.images),
-              "duration": e.durationMs
-            }))
-        .toList();
+    return _convertToMediaItemMAP(_tracks);
+  }
+
+  PlaylistManager() {
+    _tracks = [];
+    _initiated.complete(true);
   }
 
   PlaylistManager.fromTrack(spotify.Track track) {
@@ -87,6 +91,22 @@ class PlaylistManager {
     return ret;
   }
 
+  List<String> _convertToMediaItemMAP(List<spotify.Track> tracks) {
+    return tracks
+        .map<String>((e) => jsonEncode({
+              "id": e.id,
+              "title": e.name,
+              "album": e?.album?.name,
+              "artist": e?.artists?.map((e) => e.name)?.join(", "),
+              "artUri": e?.album?.images == null
+                  ? ""
+                  : _selectMediaItemImage(e.album.images),
+              "duration": e.durationMs,
+              "extras": _extractExtras(e),
+            }))
+        .toList();
+  }
+
   String _selectMediaItemImage(List<spotify.Image> images) {
     if (images.length == 0)
       return null;
@@ -113,8 +133,8 @@ class PlaylistManager {
   }
 
   initQueue() async {
-    var json = await mediaItem;
-    AudioService.customAction("initQueue", json);
+    var map = await mediaItem;
+    AudioService.customAction("initQueue", map);
   }
 
   initAudioService() async {
@@ -126,5 +146,72 @@ class PlaylistManager {
       enableQueue: true,
     );
     initQueue();
+  }
+
+  Map<String, dynamic> _extractExtras(spotify.Track track) {
+    return {
+      "discNumber": track.discNumber,
+      "spotifyDurationMs": track.durationMs,
+      "explicit": track.explicit,
+      "popularity": track.popularity,
+      "album": {
+        "id": track.album.id,
+        "images": track.album.images
+            .map((e) => {
+                  "width": e.width,
+                  "height": e.height,
+                  "url": e.url,
+                })
+            .toList()
+      },
+      "artist": track.artists
+          .map((e) => {
+                "id": e.id,
+                "name": e.name,
+              })
+          .toList()
+    };
+  }
+
+  playIndexOf(int index) async {
+    await AudioService.customAction("playIndex", index);
+  }
+
+  addTracks(List<spotify.Track> tracks) {
+    var jsonMediaItems = _convertToMediaItemMAP(tracks);
+    AudioService.customAction("addAll", jsonMediaItems);
+  }
+
+  move(int oldIndex, int newIndex) {
+    AudioService.customAction("move", <num>[oldIndex, newIndex]);
+  }
+
+  addTrackAt(int index, MediaItem track) {
+    AudioService.addQueueItemAt(track, index);
+  }
+
+  removeTrack(String id) async {
+    await AudioService.removeQueueItem(MediaItem(id: id, title: "", album: ""));
+  }
+
+  mediaItemsFromTrack(spotify.Track e) {
+    return MediaItem(
+        id: e.id,
+        title: e.name,
+        album: e?.album?.name,
+        artist: e?.artists?.map((e) => e.name)?.join(", "),
+        artUri: e?.album?.images == null
+            ? ""
+            : _selectMediaItemImage(e.album.images),
+        duration: e.durationMs,
+        extras: _extractExtras(e));
+  }
+
+  shuffle() async {
+    await AudioService.customAction("shuffle");
+  }
+
+  Future<Null> clear() async {
+    await AudioService.stop();
   }
 }

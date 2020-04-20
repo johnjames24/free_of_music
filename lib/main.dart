@@ -19,3 +19,6 @@ part 'components/music_player/playlist_display.dart';
 part 'data_layer/player.dart';
 part 'data_layer/util.dart';
 part 'data_layer/playlist_manager.dart';
+part 'data_layer/player_task.dart';
+part 'data_layer/music_player_components.dart';
+part 'data_layer/music_player_manager.dart';
