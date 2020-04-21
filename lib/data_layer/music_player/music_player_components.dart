@@ -135,6 +135,7 @@ class ScreenStateBuilder extends StatelessWidget {
   }
 }
 
+///reordering without delays
 class ReorderablePlaylist extends StatefulWidget {
   final Widget Function(BuildContext, Function(int, int), List<MediaItem>)
       builder;

@@ -53,6 +53,7 @@ class ScreenState {
 ///manages the audioplayer in the background isolate
 class AudioPlayerTask extends BackgroundAudioTask {
   PlaylistArray<MediaItem> _queueManager = PlaylistArray();
+  YoutubeDataManager ytDataManager = YoutubeDataManager();
 
   ///just_player [AudioPlayer]
   AudioPlayer _audioPlayer = new AudioPlayer();
@@ -84,6 +85,9 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
   @override
   Future<void> onStart() async {
+    await BasicDataStorageManager.init();
+    await ytDataManager.init();
+
     var playerStateSubscription = _audioPlayer.playbackStateStream
         .where((state) => state == AudioPlaybackState.completed)
         .listen((state) {
@@ -119,12 +123,12 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
         _skipState = convertToBasicPlaybackState(event.eventChange);
 
-        var yt = (await getMusicUrl(event.data));
+        var yt = await ytDataManager.get(event.data);
 
         AudioServiceBackground.setMediaItem(
-            event.data.copyWith(duration: yt.duration.inMilliseconds));
+            event.data.copyWith(duration: yt.bridge.durationInMilliseconds));
 
-        await _audioPlayer.setUrl(yt.id);
+        await _audioPlayer.setUrl(yt.audio.formats[0].url);
 
         _skipState = null;
         // Resume playback if we were playing
@@ -204,6 +208,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
     _audioPlayer.stop();
     _setState(state: BasicPlaybackState.stopped);
     _queueManager.cleanUp();
+    ytDataManager.cleanUp();
   }
 
   @override

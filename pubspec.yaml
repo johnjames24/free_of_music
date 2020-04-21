@@ -23,6 +23,8 @@ dependencies:
   path_provider: ^1.5.1
   just_audio: 
   rxdart: ^0.24.0
+  hive: 1.2.0
+  hive_flutter:
   youtube_explode_dart:
   html:
   uuid:
@@ -35,6 +37,8 @@ dependencies:
   cupertino_icons: ^0.1.3
 
 dev_dependencies:
+  hive_generator: ^0.5.1
+  build_runner:
   flutter_test:
     sdk: flutter
 
