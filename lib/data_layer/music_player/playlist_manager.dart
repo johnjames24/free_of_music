@@ -180,11 +180,37 @@ class PlaylistManager {
       androidNotificationIcon: 'mipmap/ic_launcher',
       enableQueue: true,
     );
+    _initPlaylistStream();
     await initQueue(tracks);
+  }
+
+  _initPlaylistStream() {
+    var _historySubject = BehaviorSubject<List<MediaItem>>();
+    var _queueSubject = BehaviorSubject<List<MediaItem>>();
+
+    AudioService.queueStream.listen((event) {
+      var _history = <MediaItem>[];
+      var _queue = <MediaItem>[];
+      event?.forEach((element) {
+        var index = element.extras["_index"] as int;
+
+        if (index > 0)
+          _queue.add(element);
+        else if (index < 0) _history.add(element);
+      });
+
+      _historySubject.add(_history.reversed.toList());
+      _queueSubject.add(_queue.toList());
+    });
+
     playlist.initWithStream(
-      inputQueueStream: AudioService.queueStream,
-      inputValueStream: AudioService.currentMediaItemStream,
-    );
+        historyStream: _historySubject.stream,
+        queueStream: _queueSubject.stream);
+
+    AudioService.queueStream.last.then((value) {
+      _historySubject.close();
+      _queueSubject.close();
+    });
   }
 
   playIndexOf(int index) async {

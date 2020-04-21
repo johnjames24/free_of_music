@@ -19,7 +19,7 @@ class Root extends StatelessWidget {
         inactiveTrackColor: Color.fromRGBO(140, 130, 122, 0.44),
       )),
       home: Scaffold(
-        body: MusicPlayer(),
+        body: Text("Hello World!"),
       ),
     );
   }

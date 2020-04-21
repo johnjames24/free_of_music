@@ -17,8 +17,6 @@ import 'package:path_provider/path_provider.dart' as path_provider;
 import 'package:hive/hive.dart';
 
 part 'root.dart';
-part 'components/music_player/music_player.dart';
-part 'components/music_player/playlist_display.dart';
 part 'data_layer/music_player/player.dart';
 part 'data_layer/music_player/util.dart';
 part 'data_layer/music_player/playlist_manager.dart';

@@ -61,6 +61,39 @@ class AudioPlayerTask extends BackgroundAudioTask {
   BasicPlaybackState _skipState;
   bool _playing;
 
+  Stream<List<MediaItem>> get playlistStream => Rx.combineLatest3<
+              List<MediaItem>,
+              IndexChangeEvent<MediaItem>,
+              List<MediaItem>,
+              List<MediaItem>>(
+          _queueManager.historyStream,
+          _queueManager.currentStream,
+          _queueManager.queueStream, (history, current, queue) {
+        var _i = 0;
+        var _h = history.reversed.map((e) {
+          _i++;
+          e.extras["_index"] = -_i;
+          return e;
+        }).toList();
+
+        var _c = current.data;
+        _c.extras["_index"] = 0;
+
+        _i = 0;
+        var _q = queue.map((e) {
+          _i++;
+          e.extras["_index"] = _i;
+          return e;
+        }).toList();
+
+        var x = <MediaItem>[];
+        x.addAll(_h);
+        x.add(_c);
+        x.addAll(_q);
+
+        return x;
+      });
+
   BasicPlaybackState _eventToBasicState(AudioPlaybackEvent event) {
     if (event.buffering) {
       return BasicPlaybackState.buffering;
@@ -102,8 +135,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
         );
       }
     });
-
-    var queue = _queueManager.mediaQueueStream.listen((event) {
+    var queue = playlistStream.listen((event) {
       AudioServiceBackground.setQueue(event);
     });
 

@@ -1,8 +1,11 @@
 part of k;
 
-///PLANNING
 class MusicPlayerManager extends PlaylistManager {
   MusicPlayerManager();
+
+  Stream<PlaybackState> get playbackStream => AudioService.playbackStateStream;
+  Stream<MediaItem> get currentMediaItemStream =>
+      AudioService.currentMediaItemStream;
 
   Future<void> skipToPrevious() => AudioService.skipToPrevious();
 

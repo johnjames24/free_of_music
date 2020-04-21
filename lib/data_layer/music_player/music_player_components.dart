@@ -124,8 +124,8 @@ class ScreenStateBuilder extends StatelessWidget {
               PlaybackState, ScreenState>(
           musicPlayerManager.playlist.historyStream,
           musicPlayerManager.playlist.queueStream,
-          AudioService.currentMediaItemStream,
-          AudioService.playbackStateStream,
+          musicPlayerManager.currentMediaItemStream,
+          musicPlayerManager.playbackStream,
           (history, queue, mediaItem, playbackState) =>
               ScreenState(queue, history, mediaItem, playbackState)),
       builder: (context, snapshot) {
@@ -160,7 +160,7 @@ class _ReorderablePlaylistState extends State<ReorderablePlaylist> {
     super.initState();
     listener = widget.stream.listen((event) {
       setState(() {
-        list = event;
+        list = event ?? [];
       });
     });
   }
