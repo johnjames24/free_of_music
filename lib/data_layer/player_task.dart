@@ -38,40 +38,27 @@ MediaControl stopControl = MediaControl(
 ///keeps tab of all states at once
 class ScreenState {
   final List<MediaItem> queue;
+  final List<MediaItem> history;
   final MediaItem mediaItem;
   final PlaybackState playbackState;
 
-  ScreenState(this.queue, this.mediaItem, this.playbackState);
+  ScreenState(
+    this.queue,
+    this.history,
+    this.mediaItem,
+    this.playbackState,
+  );
 }
 
 ///manages the audioplayer in the background isolate
 class AudioPlayerTask extends BackgroundAudioTask {
-  ///[MediaItem] queue array
-  List<MediaItem> _queue = [];
-
-  ///index of the queue
-  int _queueIndex = -1;
+  PlaylistArray<MediaItem> _queueManager = PlaylistArray();
 
   ///just_player [AudioPlayer]
   AudioPlayer _audioPlayer = new AudioPlayer();
 
-  ///[Completer] to complete [AudioPlayerTask.onStart]
-  Completer _completer = Completer();
-
-  ///[AudioServiceBackground.setQueue] done completer
-  Completer _init = Completer();
-
-  ///[AudioPlayerTask.onStart] queue waiting completer
-  Completer _onStart = Completer();
-
   BasicPlaybackState _skipState;
   bool _playing;
-
-  bool get hasNext => _queueIndex + 1 < _queue.length;
-
-  bool get hasPrevious => _queueIndex > 0;
-
-  MediaItem get mediaItem => _queue[_queueIndex];
 
   BasicPlaybackState _eventToBasicState(AudioPlaybackEvent event) {
     if (event.buffering) {
@@ -112,18 +99,56 @@ class AudioPlayerTask extends BackgroundAudioTask {
       }
     });
 
+    var queue = _queueManager.mediaQueueStream.listen((event) {
+      AudioServiceBackground.setQueue(event);
+    });
+
+    var lock = false;
+    var current = _queueManager.currentStream.listen((event) async {
+      if (!lock) {
+        lock = true;
+        if (_playing == null) {
+          // First time, we want to start playing
+          _playing = true;
+        } else if (_playing &&
+            _audioPlayer.playbackState != AudioPlaybackState.none) {
+          // Stop current item
+          await _audioPlayer.stop();
+          _setState(state: BasicPlaybackState.buffering, position: 0);
+        }
+
+        _skipState = convertToBasicPlaybackState(event.eventChange);
+
+        var yt = (await getMusicUrl(event.data));
+
+        AudioServiceBackground.setMediaItem(
+            event.data.copyWith(duration: yt.duration.inMilliseconds));
+
+        await _audioPlayer.setUrl(yt.id);
+
+        _skipState = null;
+        // Resume playback if we were playing
+        if (_playing) {
+          onPlay();
+        } else {
+          _setState(state: BasicPlaybackState.paused);
+        }
+        lock = false;
+      }
+    });
+
     //AudioServiceBackground.setQueue(_queue);
-    _onStart.complete();
-    print("waiting for queue");
-    await _init.future;
-    await onSkipToNext();
-    await _completer.future;
+    await _queueManager.currentStream.last;
+    await _queueManager.currentStream.last;
+    queue.cancel();
+    current.cancel();
     playerStateSubscription.cancel();
     eventSubscription.cancel();
+    _queueManager.cleanUp();
   }
 
   void _handlePlaybackCompleted() {
-    if (hasNext) {
+    if (_queueManager.hasNext) {
       onSkipToNext();
     } else {
       onStop();
@@ -146,37 +171,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
   @override
   Future<void> onRewind() async => onSeekTo(0);
 
-  Future<void> _skip(int offset) async {
-    final newPos = _queueIndex + offset;
-    if (!(newPos >= 0 && newPos < _queue.length)) return;
-    if (_playing == null) {
-      // First time, we want to start playing
-      _playing = true;
-    } else if (_playing) {
-      // Stop current item
-      await _audioPlayer.stop();
-    }
-    // Load next item
-    _queueIndex = newPos;
-    _skipState = offset > 0
-        ? BasicPlaybackState.skippingToNext
-        : BasicPlaybackState.skippingToPrevious;
-
-    var yt = (await getMusicUrl(mediaItem));
-
-    AudioServiceBackground.setMediaItem(
-        mediaItem.copyWith(duration: yt.duration.inMilliseconds));
-
-    await _audioPlayer.setUrl(yt.id);
-
-    _skipState = null;
-    // Resume playback if we were playing
-    if (_playing) {
-      onPlay();
-    } else {
-      _setState(state: BasicPlaybackState.paused);
-    }
-  }
+  Future<void> _skip(int offset) async => _queueManager.skip(offset);
 
   @override
   void onPlay() {
@@ -208,27 +203,23 @@ class AudioPlayerTask extends BackgroundAudioTask {
   void onStop() {
     _audioPlayer.stop();
     _setState(state: BasicPlaybackState.stopped);
-    _completer.complete();
+    _queueManager.cleanUp();
   }
 
   @override
   void onAddQueueItem(MediaItem item) {
-    _queue.add(item);
-    AudioServiceBackground.setQueue(_queue);
+    _queueManager.addAll([item]);
   }
 
   @override
   void onAddQueueItemAt(MediaItem mediaItem, int index) {
-    _queue.insert(index, mediaItem);
-    AudioServiceBackground.setQueue(_queue);
+    _queueManager.insert(index, mediaItem);
   }
 
   @override
   void onRemoveQueueItem(MediaItem mediaItem) {
-    var _ind = _findIndexFromId(mediaItem.id);
-
-    _queue.removeAt(_ind);
-    AudioServiceBackground.setQueue(_queue);
+    var _ind = _queueManager.mediaQueue.indexOf(mediaItem);
+    _queueManager.remove(_ind);
   }
 
   @override
@@ -257,75 +248,27 @@ class AudioPlayerTask extends BackgroundAudioTask {
 
   ///moves [oldIndex] item to [newIndex] in [_queue]
   _move(int oldIndex, int newIndex) {
-    var mediaItem = _queue.removeAt(oldIndex);
-    _queue.insert(newIndex, mediaItem);
-    AudioServiceBackground.setQueue(_queue);
+    _queueManager.move(oldIndex, newIndex);
   }
 
   ///inistantiates Queue
   _initQueue(List _map) async {
-    await _onStart.future;
     var list = _map.map((e) => _decodeMediaItem(jsonDecode(e))).toList();
-
-    _queue = list;
-    await AudioServiceBackground.setQueue(list);
-    _init.complete();
+    _queueManager.init(list);
   }
 
   ///adds a list of [MediaItem] to [_queue]
   _addAll(List _map) {
     var list = _map.map((e) => _decodeMediaItem(jsonDecode(e))).toList();
-    _queue.addAll(list);
-    AudioServiceBackground.setQueue(_queue);
+    _queueManager.addAll(list);
   }
 
   ///play a particular [index] in [_queue]
-  _playIndex(int index) async {
-    _queueIndex = index;
-    var _mediaItem = _queue[index];
-
-    if (_playing == null) {
-      // First time, we want to start playing
-      _playing = true;
-    } else if (_playing) {
-      // Stop current item
-      await _audioPlayer.stop();
-    }
-    _skipState = BasicPlaybackState.skippingToQueueItem;
-
-    var yt = (await getMusicUrl(_mediaItem));
-
-    AudioServiceBackground.setMediaItem(
-        _mediaItem.copyWith(duration: yt.duration.inMilliseconds));
-
-    await _audioPlayer.setUrl(yt.id);
-
-    _skipState = null;
-    // Resume playback if we were playing
-    if (_playing) {
-      onPlay();
-    } else {
-      _setState(state: BasicPlaybackState.paused);
-    }
-  }
+  _playIndex(int index) => _queueManager.skip(index);
 
   ///shuffles the [_queue]
   _shuffle() async {
-    _queue.shuffle();
-    AudioServiceBackground.setQueue(_queue);
-  }
-
-  ///find the index of first [MediaItem] which has the give [id]
-  int _findIndexFromId(String id) {
-    var _ind = 0, i = 0;
-    for (var x in _queue) {
-      if (x.id == mediaItem.id) {
-        _ind = i;
-      }
-      i++;
-    }
-
-    return _ind;
+    _queueManager.shuffle();
   }
 
   ///decodes MediaItem from Raw Map

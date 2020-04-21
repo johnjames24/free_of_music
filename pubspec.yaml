@@ -25,6 +25,7 @@ dependencies:
   rxdart: ^0.24.0
   youtube_explode_dart:
   html:
+  uuid:
   flutter:
     sdk: flutter
 

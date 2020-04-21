@@ -1,7 +1,5 @@
 part of k;
 
-var spotifyApi = spotify.SpotifyApi.fromToken();
-
 class SamplePlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -13,6 +11,7 @@ class SamplePlayer extends StatelessWidget {
         ),
         body: ScreenStateBuilder(
           builder: (context, screenState) {
+            var m = InheritedMusicplayer.of(context);
             final queue = screenState?.queue;
             final mediaItem = screenState?.mediaItem;
             final state = screenState?.playbackState;
@@ -32,7 +31,7 @@ class SamplePlayer extends StatelessWidget {
                             IconButton(
                               icon: Icon(Icons.skip_previous),
                               iconSize: 30.0,
-                              onPressed: mediaItem == queue.first
+                              onPressed: screenState?.history?.length == 0
                                   ? null
                                   : AudioService.skipToPrevious,
                             ),
@@ -48,17 +47,17 @@ class SamplePlayer extends StatelessWidget {
                       if (mediaItem?.title != null) Text(mediaItem.title),
                       if (basicState == BasicPlaybackState.none ||
                           basicState == BasicPlaybackState.stopped) ...[
-                        audioPlayerButton(_album, "coldplay"),
-                        audioPlayerButton(_playlist, "Deep Focus"),
-                        audioPlayerButton(_single, "single"),
+                        audioPlayerButton(
+                            () => m.initfromPlaylist("37i9dQZF1DWWMOmoXKqHTD"),
+                            "top rates"),
                       ] else
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             if (basicState == BasicPlaybackState.playing)
-                              pauseButton()
+                              pauseButton(m)
                             else if (basicState == BasicPlaybackState.paused)
-                              playButton()
+                              playButton(m)
                             else if (basicState ==
                                     BasicPlaybackState.buffering ||
                                 basicState ==
@@ -74,8 +73,8 @@ class SamplePlayer extends StatelessWidget {
                                 ),
                               ),
                             stopButton(),
-                            shuffle(),
-                            addMore(),
+                            shuffle(m),
+                            addMore(m),
                           ],
                         ),
                       if (basicState != BasicPlaybackState.none &&
@@ -90,10 +89,13 @@ class SamplePlayer extends StatelessWidget {
                 if (queue != null)
                   Container(
                     height: 350,
-                    child: ReorderableListView(
-                      children: reorederableListItems(screenState),
-                      onReorder: m.move,
-                    ),
+                    child: ReorderablePlaylist(
+                        builder: (build, onReorder, list) =>
+                            ReorderableListView(
+                              children: reorederableListItems(list, m),
+                              onReorder: onReorder,
+                            ),
+                        stream: m.playlist.queueStream),
                   )
               ],
             );
@@ -103,15 +105,14 @@ class SamplePlayer extends StatelessWidget {
     ));
   }
 
-  reorederableListItems(ScreenState state) {
-    var i = -1;
-    return state.queue.map((e) {
+  reorederableListItems(List<MediaItem> list, MusicPlayerManager m) {
+    var i = 0;
+    return list.map((e) {
       i++;
       var x = i;
       return ListTile(
         leading: IconButton(
-          icon:
-              Icon(e == state?.mediaItem ? Icons.music_note : Icons.play_arrow),
+          icon: Icon(Icons.music_note),
           onPressed: () async {
             m.playIndexOf(x);
           },
@@ -136,19 +137,19 @@ class SamplePlayer extends StatelessWidget {
         onPressed: onPressed,
       );
 
-  IconButton playButton() => IconButton(
+  IconButton playButton(MusicPlayerManager m) => IconButton(
         icon: Icon(Icons.play_arrow),
         iconSize: 30.0,
-        onPressed: AudioService.play,
+        onPressed: m.play,
       );
 
-  IconButton pauseButton() => IconButton(
+  IconButton pauseButton(MusicPlayerManager m) => IconButton(
         icon: Icon(Icons.pause),
         iconSize: 30.0,
-        onPressed: AudioService.pause,
+        onPressed: m.pause,
       );
 
-  IconButton shuffle() => IconButton(
+  IconButton shuffle(MusicPlayerManager m) => IconButton(
         icon: Icon(Icons.shuffle),
         iconSize: 30.0,
         onPressed: m.shuffle,
@@ -160,7 +161,7 @@ class SamplePlayer extends StatelessWidget {
         onPressed: AudioService.stop,
       );
 
-  IconButton addMore() => IconButton(
+  IconButton addMore(MusicPlayerManager m) => IconButton(
         icon: Icon(Icons.add),
         iconSize: 30.0,
         onPressed: () async {
@@ -196,21 +197,13 @@ class SamplePlayer extends StatelessWidget {
       )),
     );
   }
+
+  // void _playlist() async {
+  //   m.initfromPlaylist("37i9dQZF1DX9GRpeH4CL0S");
+  // }
 }
 
-PlaylistManager m = PlaylistManager();
-void _playlist() async {
-  m = PlaylistManager.fromPlaylist("37i9dQZF1DWZeKCadgRdKQ");
-  await m.initAudioService();
-}
-
-void _album() async {
-  m = PlaylistManager.fromAlbum("4E7bV0pzG0LciBSWTszra6");
-  m.initAudioService();
-}
-
-void _single() async {
-  m = PlaylistManager.onlyTrack(
-      await spotifyApi.tracks.get("2zQIITgo6sc5ppOfPcH205"));
-  m.initAudioService();
-}
+//37i9dQZF1DX9GRpeH4CL0S
+//37i9dQZF1DWWMOmoXKqHTD
+//0Uzp8iuYAlt2gxR0q7A4EU
+//0Uzp8iuYAlt2gxR0q7A4EU

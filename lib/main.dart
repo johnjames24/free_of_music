@@ -10,6 +10,7 @@ import 'package:html/parser.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import 'package:spotify/spotify_io.dart' as spotify;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt;
 
@@ -22,3 +23,4 @@ part 'data_layer/playlist_manager.dart';
 part 'data_layer/player_task.dart';
 part 'data_layer/music_player_components.dart';
 part 'data_layer/music_player_manager.dart';
+part 'data_layer/playlist_arry.dart';

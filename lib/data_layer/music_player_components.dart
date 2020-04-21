@@ -1,64 +1,42 @@
 part of k;
 
 ///root of every AudioService
-class AudioServiceRoot extends StatefulWidget {
-  final child;
+class AudioServiceRoot extends StatelessWidget {
+  final Widget child;
 
   AudioServiceRoot({
     @required this.child,
   });
 
   @override
-  _AudioServiceRootState createState() => _AudioServiceRootState();
+  Widget build(BuildContext context) {
+    return AudioServiceWidget(
+      child: InheritedMusicplayer(
+        musicPlayer: MusicPlayerManager(),
+        child: child,
+      ),
+    );
+  }
 }
 
-///root of all AudioService
-class _AudioServiceRootState extends State<AudioServiceRoot>
-    with WidgetsBindingObserver {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    connect();
-  }
+class InheritedMusicplayer extends InheritedWidget {
+  final MusicPlayerManager musicPlayer;
+
+  InheritedMusicplayer({
+    @required this.musicPlayer,
+    Key key,
+    Widget child,
+  }) : super(key: key, child: child);
 
   @override
-  void dispose() {
-    disconnect();
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
+  bool updateShouldNotify(InheritedWidget oldWidget) {
+    throw false;
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    switch (state) {
-      case AppLifecycleState.resumed:
-        connect();
-        break;
-      case AppLifecycleState.paused:
-        disconnect();
-        break;
-      default:
-        break;
-    }
-  }
-
-  void connect() async {
-    await AudioService.connect();
-  }
-
-  void disconnect() {
-    AudioService.disconnect();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-        child: widget.child,
-        onWillPop: () {
-          disconnect();
-          return Future.value(true);
-        });
+  static MusicPlayerManager of(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<InheritedMusicplayer>()
+        .musicPlayer;
   }
 }
 
@@ -140,17 +118,80 @@ class ScreenStateBuilder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var musicPlayerManager = InheritedMusicplayer.of(context);
     return StreamBuilder<ScreenState>(
-      stream: Rx.combineLatest3<List<MediaItem>, MediaItem, PlaybackState,
-              ScreenState>(
-          AudioService.queueStream,
+      stream: Rx.combineLatest4<List<MediaItem>, List<MediaItem>, MediaItem,
+              PlaybackState, ScreenState>(
+          musicPlayerManager.playlist.historyStream,
+          musicPlayerManager.playlist.queueStream,
           AudioService.currentMediaItemStream,
           AudioService.playbackStateStream,
-          (queue, mediaItem, playbackState) =>
-              ScreenState(queue, mediaItem, playbackState)),
+          (history, queue, mediaItem, playbackState) =>
+              ScreenState(queue, history, mediaItem, playbackState)),
       builder: (context, snapshot) {
         return builder(context, snapshot.data);
       },
+    );
+  }
+}
+
+class ReorderablePlaylist extends StatefulWidget {
+  final Widget Function(BuildContext, Function(int, int), List<MediaItem>)
+      builder;
+  final Stream<List<MediaItem>> stream;
+
+  ReorderablePlaylist({
+    @required this.builder,
+    @required this.stream,
+  });
+
+  @override
+  _ReorderablePlaylistState createState() => _ReorderablePlaylistState();
+}
+
+class _ReorderablePlaylistState extends State<ReorderablePlaylist> {
+  var listener;
+
+  List<MediaItem> list = [];
+
+  @override
+  initState() {
+    super.initState();
+    listener = widget.stream.listen((event) {
+      setState(() {
+        list = event;
+      });
+    });
+  }
+
+  @override
+  dispose() {
+    listener.cancel();
+    super.dispose();
+  }
+
+  onChange(BuildContext context) {
+    var musicPlayerManager = InheritedMusicplayer.of(context);
+    return (int oldIndex, int newIndex) {
+      if (oldIndex < list.length &&
+          newIndex < list.length &&
+          newIndex >= 0 &&
+          oldIndex >= 0) {
+        setState(() {
+          var val = list.removeAt(oldIndex);
+          list.insert(newIndex, val);
+        });
+        musicPlayerManager.move(oldIndex + 1, newIndex + 1);
+      }
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.builder(
+      context,
+      onChange(context),
+      list,
     );
   }
 }
