@@ -12,6 +12,9 @@ class PlaylistArray<T> {
   List<T> _history = [];
   T _current;
 
+  List<T> _unshuffledList = [];
+  bool isShuffled = false;
+
   BehaviorSubject<IndexChangeEvent<T>> _valueSubject = BehaviorSubject();
   BehaviorSubject<List<T>> _queueSubject = BehaviorSubject<List<T>>();
   BehaviorSubject<List<T>> _historySubject = BehaviorSubject<List<T>>();
@@ -111,7 +114,14 @@ class PlaylistArray<T> {
   }
 
   shuffle() {
-    _queue.shuffle();
+    if (!isShuffled) {
+      _unshuffledList = [..._queue];
+      isShuffled = true;
+      _queue.shuffle();
+    } else {
+      _queue = [..._unshuffledList];
+      isShuffled = false;
+    }
     _queueUpdate();
   }
 

@@ -2,6 +2,7 @@ part of k.data_layer;
 
 class PlaylistManager {
   PlaylistArray<MediaItem> playlist = PlaylistArray();
+  bool isShuffled = false;
 
   Future<void> initfromTrack(spotify.Track track) async {
     if (AudioService.running) await clear();
@@ -134,6 +135,7 @@ class PlaylistManager {
   }
 
   Future<void> shuffle() async {
+    isShuffled = !isShuffled;
     if (AudioService.running) await AudioService.customAction("shuffle");
   }
 

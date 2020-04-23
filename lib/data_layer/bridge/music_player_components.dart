@@ -216,9 +216,36 @@ class _PageViewPlaylistState extends State<PageViewPlaylist> {
   StreamSubscription _subscriptionMediaItem;
   List<MediaItem> list = [];
 
-  Timer _timer;
-  var _page = 0;
-  var _lock = false;
+  MediaItem _mediaItem;
+
+  MediaItem get mediaItem {
+    return _mediaItem;
+  }
+
+  set mediaItem(MediaItem x) {
+    if (mediaItem != x) {
+      var oldMediaItem = _mediaItem;
+      var newMediaItem = x;
+
+      var oldIndex = oldMediaItem != null ? list.indexOf(oldMediaItem) : 0;
+      var newIndex = list.indexOf(newMediaItem);
+      var pageIndex = _controller?.page?.toInt();
+
+      if (newMediaItem != AudioService.currentMediaItem && pageIndex != null) {
+        if (newIndex + 1 == oldIndex) {
+          AudioService.skipToPrevious();
+        } else if (newIndex - 1 == oldIndex) {
+          AudioService.skipToNext();
+        }
+      } else if (pageIndex != null &&
+          pageIndex != newIndex &&
+          oldIndex != newIndex) {
+        _controller.jumpToPage(newIndex);
+      }
+
+      _mediaItem = x;
+    }
+  }
 
   @override
   initState() {
@@ -226,51 +253,25 @@ class _PageViewPlaylistState extends State<PageViewPlaylist> {
     _controller = PageController(initialPage: 0);
 
     _subscriptionQueue = AudioService.queueStream.listen((event) {
-      setState(() {
-        list = event;
-      });
+      list = event;
     });
 
     _subscriptionMediaItem =
         AudioService.currentMediaItemStream.listen((event) {
-      if (!_doesPlaylistMatches()) {
-        _controller.jumpToPage(list.indexOf(event));
-        _lock = true;
-      }
+      mediaItem = event;
     });
   }
 
   @override
   dispose() {
     _controller.dispose();
-
-    _subscriptionQueue.cancel();
-    _subscriptionMediaItem.cancel();
-
-    if (_timer != null) _timer.cancel();
-
+    if (_subscriptionQueue != null) _subscriptionQueue.cancel();
+    if (_subscriptionMediaItem != null) _subscriptionMediaItem.cancel();
     super.dispose();
   }
 
-  _doesPlaylistMatches() {
-    if (_controller.page?.toInt() == null) return false;
-    if ((_controller.page?.toInt() ?? 0) >= list.length) return false;
-
-    return AudioService.currentMediaItem ==
-        list[_controller.page?.toInt() ?? 0];
-  }
-
   onPageChanged(int x) {
-    if (AudioService.running && _controller.hasClients && !_lock) {
-      if (x > _page) {
-        AudioService.skipToNext();
-      } else if (x < _page) {
-        AudioService.skipToPrevious();
-      }
-      _page = x;
-    }
-
-    if (_lock) _lock = false;
+    if (list.length != 0) mediaItem = list[x];
   }
 
   @override

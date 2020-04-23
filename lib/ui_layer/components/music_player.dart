@@ -377,7 +377,10 @@ class _MusicPlayerState extends State<MusicPlayer> {
                       IconButton(
                         iconSize: 30,
                         icon: Icon(Icons.shuffle),
-                        onPressed: () => AudioService.customAction("shuffle"),
+                        color: InheritedMusicplayer.of(context).isShuffled
+                            ? Theme.of(context).accentColor
+                            : Theme.of(context).iconTheme.color,
+                        onPressed: InheritedMusicplayer.of(context).shuffle,
                       )
                     ],
                   )),
@@ -633,7 +636,10 @@ class PlaylistPage extends StatelessWidget {
                         IconButton(
                           iconSize: 18,
                           icon: Icon(Icons.shuffle),
-                          onPressed: () => AudioService.customAction("shuffle"),
+                          color: InheritedMusicplayer.of(context).isShuffled
+                              ? Theme.of(context).accentColor
+                              : Theme.of(context).iconTheme.color,
+                          onPressed: InheritedMusicplayer.of(context).shuffle,
                         )
                       ],
                     ),
