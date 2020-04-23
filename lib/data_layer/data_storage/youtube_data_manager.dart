@@ -1,13 +1,16 @@
-part of k;
+part of k.data_layer;
 
-const YOUTUBE_EXPIRE_TIME = Duration(hours: 5);
+///time taken to expire a youtube url
+const YOUTUBE_EXPIRE_TIME = Duration(hours: 4);
 
+///extract youtube audio with [YoutubeExplode]. Also caches the result
 class YoutubeDataManager {
-  Box<YtSpotiyBridge> ytSpotifyBridgeBox;
-  Box<YtMedia> ytMediaCache;
+  Box<YtSpotiyBridge> _ytSpotifyBridgeBox;
+  Box<YtMedia> _ytMediaCache;
 
   Completer _initiated = Completer();
 
+  ///connects the boxes
   init() async {
     Hive.registerAdapter(YtSpotiyBridgeAdapter(), 10);
     Hive.registerAdapter(YtMediaAdapter(), 11);
@@ -16,17 +19,18 @@ class YoutubeDataManager {
     Hive.registerAdapter(MediaContainerAdapter(), 14);
     Hive.registerAdapter(AudioEncodingAdapter(), 15);
 
-    ytSpotifyBridgeBox = await Hive.openBox("ytSpotifyBridgeBox");
-    ytMediaCache = await Hive.openBox("ytMediaCache");
+    _ytSpotifyBridgeBox = await Hive.openBox("ytSpotifyBridgeBox");
+    _ytMediaCache = await Hive.openBox("ytMediaCache");
     _initiated.complete();
   }
 
+  ///returns the youtube audio urls as [YoutubeDataManagerResponse]
   Future<YoutubeDataManagerResponse> get(MediaItem mediaItem) async {
     await _initiated.future;
     var spotifyId = mediaItem?.extras["spotify_id"] as String ?? "";
     YtSpotiyBridge current;
-    if (ytSpotifyBridgeBox.containsKey(spotifyId)) {
-      current = ytSpotifyBridgeBox.get(spotifyId);
+    if (_ytSpotifyBridgeBox.containsKey(spotifyId)) {
+      current = _ytSpotifyBridgeBox.get(spotifyId);
     } else {
       var ytMedia = await _extractSearchPg(mediaItem);
       current = new YtSpotiyBridge.fromValue(
@@ -35,18 +39,18 @@ class YoutubeDataManager {
         spotifyId: spotifyId,
         youtubeId: ytMedia.id,
       );
-      ytSpotifyBridgeBox.put(spotifyId, current);
+      _ytSpotifyBridgeBox.put(spotifyId, current);
     }
 
     var ytId = current.youtubeId;
-    if (ytMediaCache.containsKey(ytId)) {
-      var ytVideos = ytMediaCache.get(ytId);
+    if (_ytMediaCache.containsKey(ytId)) {
+      var ytVideos = _ytMediaCache.get(ytId);
       if (ytVideos.onTime.microsecondsSinceEpoch <
           DateTime.now().microsecondsSinceEpoch +
               YOUTUBE_EXPIRE_TIME.inMicroseconds) {
         return YoutubeDataManagerResponse(current, ytVideos);
       }
-      await ytMediaCache.delete(ytId);
+      await _ytMediaCache.delete(ytId);
     }
 
     var formats = await _ytMusic(ytId);
@@ -55,7 +59,7 @@ class YoutubeDataManager {
       onTime: Date.now(),
       youtubeId: ytId,
     );
-    await ytMediaCache.put(ytId, ytVideos);
+    await _ytMediaCache.put(ytId, ytVideos);
     return YoutubeDataManagerResponse(current, ytVideos);
   }
 
@@ -86,29 +90,40 @@ class YoutubeDataManager {
     throw ErrorDescription("Youtube Search Error");
   }
 
+  ///clears expired data from cache
   clearExpired() async {
-    var keys = ytMediaCache.keys.toList();
+    var keys = _ytMediaCache.keys.toList();
 
     keys.forEach((element) {
-      var ytMedia = ytMediaCache.get(element);
+      var ytMedia = _ytMediaCache.get(element);
 
       if (ytMedia.onTime.microsecondsSinceEpoch >
           DateTime.now().microsecondsSinceEpoch +
               YOUTUBE_EXPIRE_TIME.inMicroseconds) {
-        ytMediaCache.delete(element);
+        _ytMediaCache.delete(element);
       }
     });
   }
 
+  ///clear every cached youtube URL
+  dropCache() async {
+    await _ytMediaCache.deleteFromDisk();
+  }
+
+  ///disconnects the boxes
   cleanUp() async {
     await _initiated.future;
-    await ytSpotifyBridgeBox.close();
-    await ytMediaCache.close();
+    await _ytSpotifyBridgeBox.close();
+    await _ytMediaCache.close();
   }
 }
 
+///represents respondes from [YoutubeDataManager.get]
 class YoutubeDataManagerResponse {
+  ///bridge data of the request
   YtSpotiyBridge bridge;
+
+  ///audio urls of the requested media
   YtMedia audio;
 
   YoutubeDataManagerResponse(this.bridge, this.audio);

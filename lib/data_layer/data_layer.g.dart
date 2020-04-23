@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of k;
+part of k.data_layer;
 
 // **************************************************************************
 // TypeAdapterGenerator

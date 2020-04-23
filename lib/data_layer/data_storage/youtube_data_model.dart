@@ -1,4 +1,4 @@
-part of k;
+part of k.data_layer;
 
 @HiveType()
 class YtSpotiyBridge {

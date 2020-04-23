@@ -1,4 +1,4 @@
-part of k;
+part of k.data_layer;
 
 ///root of every AudioService
 class AudioServiceRoot extends StatelessWidget {
@@ -59,6 +59,7 @@ class _PositionSliderBuilderState extends State<PositionSliderBuilder> {
       BehaviorSubject.seeded(null);
 
   onChange(value) {
+    print(value);
     _dragPositionSubject.add(value);
   }
 
@@ -193,6 +194,121 @@ class _ReorderablePlaylistState extends State<ReorderablePlaylist> {
       context,
       onChange(context),
       list,
+    );
+  }
+}
+
+///rendering playlist pageview without delay
+class PageViewPlaylist extends StatefulWidget {
+  final Widget Function(BuildContext, MediaItem) builder;
+
+  PageViewPlaylist({
+    @required this.builder,
+  });
+
+  @override
+  _PageViewPlaylistState createState() => _PageViewPlaylistState();
+}
+
+class _PageViewPlaylistState extends State<PageViewPlaylist> {
+  PageController _controller;
+  StreamSubscription _subscriptionQueue;
+  StreamSubscription _subscriptionMediaItem;
+  List<MediaItem> list = [];
+
+  Timer _timer;
+  var _page = 0;
+  var _lock = false;
+
+  @override
+  initState() {
+    super.initState();
+    _controller = PageController(initialPage: 0);
+
+    _subscriptionQueue = AudioService.queueStream.listen((event) {
+      setState(() {
+        list = event;
+      });
+    });
+
+    _subscriptionMediaItem =
+        AudioService.currentMediaItemStream.listen((event) {
+      if (!_doesPlaylistMatches()) {
+        _controller.jumpToPage(list.indexOf(event));
+        _lock = true;
+      }
+    });
+  }
+
+  @override
+  dispose() {
+    _controller.dispose();
+
+    _subscriptionQueue.cancel();
+    _subscriptionMediaItem.cancel();
+
+    if (_timer != null) _timer.cancel();
+
+    super.dispose();
+  }
+
+  _doesPlaylistMatches() {
+    if (_controller.page?.toInt() == null) return false;
+    if ((_controller.page?.toInt() ?? 0) >= list.length) return false;
+
+    return AudioService.currentMediaItem ==
+        list[_controller.page?.toInt() ?? 0];
+  }
+
+  onPageChanged(int x) {
+    if (AudioService.running && _controller.hasClients && !_lock) {
+      if (x > _page) {
+        AudioService.skipToNext();
+      } else if (x < _page) {
+        AudioService.skipToPrevious();
+      }
+      _page = x;
+    }
+
+    if (_lock) _lock = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      child: PageView.builder(
+        onPageChanged: onPageChanged,
+        itemCount: list.length,
+        controller: _controller,
+        physics: BouncingScrollPhysics(),
+        itemBuilder: (context, index) =>
+            list.map((e) => () => widget.builder(context, e)).toList()[index](),
+      ),
+    );
+  }
+}
+
+class SimpleSlider extends StatefulWidget {
+  final Widget Function(BuildContext, int, int) builder;
+
+  SimpleSlider({
+    @required this.builder,
+  });
+
+  @override
+  _SimpleSliderState createState() => _SimpleSliderState();
+}
+
+class _SimpleSliderState extends State<SimpleSlider> {
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<PlaybackState>(
+      stream: Stream.periodic(Duration(milliseconds: 200)),
+      builder: (context, snapshot) {
+        var pos = AudioService?.playbackState?.currentPosition ?? 0;
+        var dur = AudioService?.currentMediaItem?.duration ?? 1;
+        return widget.builder(context, pos, dur);
+      },
     );
   }
 }

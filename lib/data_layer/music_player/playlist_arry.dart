@@ -1,25 +1,10 @@
-part of k;
+part of k.data_layer;
 
 enum ChangeEvent {
   skippingToNext,
   skippingToPrevious,
   skippingToQueueItem,
   initiatePlaylist,
-}
-
-convertToBasicPlaybackState(ChangeEvent event) {
-  switch (event) {
-    case ChangeEvent.initiatePlaylist:
-      return BasicPlaybackState.skippingToNext;
-    case ChangeEvent.skippingToPrevious:
-      return BasicPlaybackState.skippingToPrevious;
-    case ChangeEvent.skippingToQueueItem:
-      return BasicPlaybackState.skippingToQueueItem;
-    case ChangeEvent.skippingToNext:
-      return BasicPlaybackState.skippingToNext;
-    default:
-      return BasicPlaybackState.none;
-  }
 }
 
 class PlaylistArray<T> {

@@ -27,6 +27,7 @@ dependencies:
   hive_flutter:
   youtube_explode_dart:
   html:
+  palette_generator:
   uuid:
   flutter:
     sdk: flutter

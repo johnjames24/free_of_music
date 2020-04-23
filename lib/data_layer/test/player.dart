@@ -1,5 +1,10 @@
-part of k;
+part of k.data_layer;
 
+///[SamplePlayer] tests the musicplayer
+///
+///HOW TO USE IT??
+///Plug [SamplePlayer] in place of root
+///
 class SamplePlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -54,7 +59,7 @@ class SamplePlayer extends StatelessWidget {
                                   basicState == BasicPlaybackState.stopped) ...[
                                 audioPlayerButton(
                                     () => m.initfromPlaylist(
-                                        "37i9dQZF1DWWMOmoXKqHTD"),
+                                        "37i9dQZF1DWZeKCadgRdKQ"),
                                     "top rates"),
                               ] else
                                 Row(
@@ -241,3 +246,6 @@ class SamplePlayer extends StatelessWidget {
     );
   }
 }
+
+///https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ?si=h8sPfh0pR7yPyFwIT_gK5Q
+//https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ?si=xFD6-ILpRReXJ2Jh-KyBzA

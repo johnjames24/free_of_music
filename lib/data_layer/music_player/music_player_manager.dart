@@ -1,4 +1,4 @@
-part of k;
+part of k.data_layer;
 
 class MusicPlayerManager extends PlaylistManager {
   MusicPlayerManager();
@@ -6,6 +6,7 @@ class MusicPlayerManager extends PlaylistManager {
   Stream<PlaybackState> get playbackStream => AudioService.playbackStateStream;
   Stream<MediaItem> get currentMediaItemStream =>
       AudioService.currentMediaItemStream;
+  get isPlaying => AudioService.running;
 
   Future<void> skipToPrevious() => AudioService.skipToPrevious();
 

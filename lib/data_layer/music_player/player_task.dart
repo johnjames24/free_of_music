@@ -1,4 +1,4 @@
-part of k;
+part of k.data_layer;
 
 ///play control button
 MediaControl playControl = MediaControl(
@@ -150,7 +150,7 @@ class AudioPlayerTask extends BackgroundAudioTask {
             _audioPlayer.playbackState != AudioPlaybackState.none) {
           // Stop current item
           await _audioPlayer.stop();
-          _setState(state: BasicPlaybackState.buffering, position: 0);
+          _setState(state: BasicPlaybackState.buffering);
         }
 
         _skipState = convertToBasicPlaybackState(event.eventChange);
