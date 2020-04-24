@@ -33,9 +33,7 @@ playPauseButton(BasicPlaybackState basicState) {
       icon: Icon(Icons.play_circle_outline),
       onPressed: AudioService.play,
     );
-  else if (basicState == BasicPlaybackState.buffering ||
-      basicState == BasicPlaybackState.skippingToNext ||
-      basicState == BasicPlaybackState.skippingToPrevious)
+  else
     return Padding(
       padding: const EdgeInsets.all(15.0),
       child: Container(
@@ -44,8 +42,6 @@ playPauseButton(BasicPlaybackState basicState) {
         child: CircularProgressIndicator(),
       ),
     );
-  else
-    return Container();
 }
 
 class MiniMusicPlayer extends StatelessWidget {

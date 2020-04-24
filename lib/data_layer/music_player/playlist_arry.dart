@@ -104,8 +104,13 @@ class PlaylistArray<T> {
   remove(int offset) {
     if (isValidOffset(offset)) {
       if (offset > 0) {
-        _queue.removeAt(offset - 1);
+        var item = _queue.removeAt(offset - 1);
         _queueUpdate();
+
+        //updates unshuffled list
+        if (isShuffled) {
+          _unshuffledList.removeAt(_unshuffledList.indexOf(item));
+        }
       } else {
         _history.removeAt(-offset - 1);
         _historyUpdate();
@@ -119,6 +124,16 @@ class PlaylistArray<T> {
       isShuffled = true;
       _queue.shuffle();
     } else {
+      if (_unshuffledList.indexOf(_current) != -1) {
+        _unshuffledList.removeAt(_unshuffledList.indexOf(_current));
+      }
+
+      for (var x in _history) {
+        if (_unshuffledList.indexOf(x) != -1) {
+          _unshuffledList.removeAt(_unshuffledList.indexOf(x));
+        }
+      }
+
       _queue = [..._unshuffledList];
       isShuffled = false;
     }
@@ -128,11 +143,21 @@ class PlaylistArray<T> {
   insert(int offset, T item) {
     _queue[offset - 1] = item;
     _queueUpdate();
+
+    //updates unshuffled list
+    if (isShuffled) {
+      _unshuffledList.add(item);
+    }
   }
 
   addAll(List<T> list) {
     _queue.addAll(list);
     _queueUpdate();
+
+    //updates unshuffled list
+    if (isShuffled) {
+      _unshuffledList.addAll(list);
+    }
   }
 
   skip(int offset, [bool update = true]) {
