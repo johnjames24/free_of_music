@@ -7,8 +7,12 @@ void main() async {
   ///initiates [Hive] for the main thread
   await BasicDataStorageManager.init();
 
-  runApp(AudioServiceRoot(
-    child: Root(),
+  // runApp(AudioServiceRoot(
+  //   child: Root(),
+  // ));
+  runApp(MaterialApp(
+    home: Scaffold(
+      body: SearchPg(),
+    ),
   ));
-  // runApp(SamplePlayer());
 }

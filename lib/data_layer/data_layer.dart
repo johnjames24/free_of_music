@@ -34,6 +34,13 @@ part 'test/example.dart';
 
 //bridges
 part 'bridge/music_player_components.dart';
+part 'bridge/search_page_components.dart';
+
+//utilities
+part 'util/lazy_page.dart';
+
+//api
+part 'api_manager/search.dart';
 
 //auto generated
 part 'data_layer.g.dart';
