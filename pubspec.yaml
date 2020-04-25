@@ -18,7 +18,7 @@ environment:
 
 dependencies:
   spotify:
-    path: ../packages/spotify-dart
+    path: ../../dart/spotify-dart
   audio_service: ^0.7.2
   path_provider: ^1.5.1
   just_audio: 
@@ -29,6 +29,7 @@ dependencies:
   html:
   palette_generator:
   uuid:
+  number_display:
   flutter:
     sdk: flutter
 
